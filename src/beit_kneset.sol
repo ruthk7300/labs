@@ -1,53 +1,65 @@
-pragma solidity >=0.6.12 <0.9.0;
-contract ReceiveEther {
-    // Event to log the deposit to blockchain
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract Gabaim {
+    address public owner;
+    address public auth1;
+    address public auth2;
+    address public auth3;
+    uint public balance;
+
+    event PersonAdded(address indexed person);
+    event PersonRemoved(address indexed person);
     event Deposit(address indexed sender, uint256 amount);
-    // Event to log the withdrawal from the contract
-    event Withdrawal(address indexed recipient, uint256 amount);
-    address private owner;
-    address private authorizedWithdrawer1;
-    address private authorizedWithdrawer2;
-    address private authorizedWithdrawer3;
-    constructor(address _authorizedWithdrawer1, address _authorizedWithdrawer2, address _authorizedWithdrawer3) {
-        require(_authorizedWithdrawer1 != address(0) && _authorizedWithdrawer2 != address(0) && _authorizedWithdrawer3 != address(0), "Authorized withdrawers cannot be zero address");
+    event Withdraw(address indexed recipient, uint256 amount);
+
+    constructor() {
         owner = msg.sender;
-        authorizedWithdrawer1 = _authorizedWithdrawer1;
-        authorizedWithdrawer2 = _authorizedWithdrawer2;
-        authorizedWithdrawer3 = _authorizedWithdrawer3;
     }
-    // Function to receive Ether
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only owner can call this function");
+        _;
+    }
+
+    modifier onlyAuthorized() {
+        require(
+            msg.sender == auth1 || msg.sender == auth2 || msg.sender == auth3,
+            "no auth"
+        );
+        _;
+    }
+
+    function addAuthorizedPerson(address _newPerson) public onlyOwner {
+        require(_newPerson != address(0) && _newPerson != owner, "Invalid address");
+        require(_newPerson != auth1 && _newPerson != auth2 && _newPerson != auth3, " already auth");
+        
+        if (auth1 == address(0)) {
+            auth1 = _newPerson;
+        } else if (auth2 == address(0)) {
+            auth2 = _newPerson;
+        } else if (auth3 == address(0)) {
+            auth3 = _newPerson;
+        } else {
+            revert("all already set");
+        }
+        
+        emit PersonAdded(_newPerson);
+    }
+
     receive() external payable {
+        balance += msg.value;
         emit Deposit(msg.sender, msg.value);
     }
-    // Function to check the contract's balance
-    function getBalance() public view returns (uint256) {
-        return address(this).balance;
+
+    function withdraw(uint _amount) public payable onlyAuthorized {
+        require(balance >= _amount, "Insufficient funds");
+        balance -= _amount;
+        payable(msg.sender).transfer(_amount);
+        emit Withdraw(msg.sender, _amount);
     }
-    // Function to withdraw Ether from the contract
-    function withdraw(uint256 amount) public {
-        require(amount > 0, "Withdrawal amount must be greater than 0");
-        require(amount <= address(this).balance, "Insufficient contract balance");
-        require(isAuthorized(msg.sender), "You are not allowed to withdraw");
-        payable(msg.sender).transfer(amount);
-        emit Withdrawal(msg.sender, amount);
-    }
-    // Function to check if an address is authorized to withdraw
-    function isAuthorized(address _address) private view returns (bool) {
-        return (_address == owner || _address == authorizedWithdrawer1 || _address == authorizedWithdrawer2 || _address == authorizedWithdrawer3);
+
+    function getBalance() public view returns (uint) {
+        return balance;
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
